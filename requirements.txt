@@ -1,4 +1,2 @@
 streamlit 
-pymongo 
-google-auth 
-google-auth-oauthlib
+pymongo
