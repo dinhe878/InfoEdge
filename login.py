@@ -34,6 +34,10 @@ if 'selected_db' not in st.session_state:
        st.session_state.selected_db = None
 if 'collections' not in st.session_state:
        st.session_state.collections = []
+if 'selected_collection' not in st.session_state:
+       st.session_state.selected_collection = None
+if 'selected_region' not in st.session_state:
+       st.session_state.selected_region = None
 
 # Update username
 def user_update(name):
@@ -55,7 +59,7 @@ if st.session_state.username == '':
         st.session_state.client = connect_to_mongodb(username, user_pas)
         # Clear password
         del user_pas
-        st.switch_page("pages/search.py")
+        st.switch_page("pages/AI_chatbot.py")
     else:
         st.sidebar.warning("Please log in to continue")
 else:    
