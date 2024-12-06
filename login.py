@@ -60,8 +60,6 @@ if st.session_state.username == '':
         # Clear password
         del user_pas
         st.switch_page("pages/search.py")
-        # When login is successful, optionally switch to the chatbot page
-        # st.switch_page("pages/AI_chatbot.py")
     else:
         st.sidebar.warning("Please log in to continue")
 else:    
