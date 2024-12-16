@@ -1,6 +1,5 @@
 import streamlit as st
 from pymongo.mongo_client import MongoClient
-import os
 # Local testing import
 # from dotenv import load_dotenv
 # load_dotenv(override=True)

@@ -1,2 +1,11 @@
 streamlit 
 pymongo
+# python-dotenv
+# docx2pdf
+# google-generativeai
+# google_auth_oauthlib
+# google.auth
+# google-api-python-client
+# google-oauth2-tool
+# langchain
+# langchain-ollama
