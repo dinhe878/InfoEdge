@@ -1,4 +1,5 @@
 import streamlit as st
+from bson import ObjectId
 import json
 from typing import Dict
 
@@ -12,32 +13,87 @@ st.html(f"<style>{css_selectbox}</style>")
 
 def get_documents_from_collection(
         client,
-        select_db, 
+        select_db,
         select_collection,
         select_region,
-        query=None,
-        sort_by=None, 
-        sort_order=-1
-        ):
-
-    db = client.get_database(select_db)
-    collection = db.get_collection(select_collection)
-
-    if select_region == 'All':
-        query = {}
-    else:
-        query = {'main_country_of_operation': select_region}
-
-#    if query is None:
-#        query = {}
+        selected_organization,
+        sort_by=None,
+        sort_order=-1):
+        db = client.get_database(select_db)
+        collection = db.get_collection(select_collection)
+        if selected_collection == 'Project':
+            if select_region == 'All':
+                query = {}
+            else:
+                query = {'main_country_of_operation': select_region}
+        # For now only People collection uses aggregation pipeline
+        elif selected_collection == 'People':
+            if selected_organization == 'All':
+                pipeline = [
+                    {
+                        "$lookup":{
+                            "from": "Organization",
+                            "localField": "affiliation",
+                            "foreignField": "_id",
+                            "as": "affiliation_details"
+                        }
+                    },
+                    {
+                        "$addFields": {
+                            "affiliation": {
+                                "$arrayElemAt": ["$affiliation_details.name", 0]
+                            }
+                        }
+                    },
+                    {
+                        "$project": {
+                            "affiliation_details": 0
+                        }
+                    }
+                ]
+            elif selected_organization is None:
+                st.warning("Please select an organization.")
+            else:
+                organization = db.Organization.find_one({"name": selected_organization}, {"_id": 1})
+                pipeline = [
+                    {
+                        "$match": {
+                            "affiliation": organization['_id']
+                        }
+                    },
+                    {
+                        "$lookup":{
+                            "from": "Organization",
+                            "localField": "affiliation",
+                            "foreignField": "_id",
+                            "as": "affiliation_details"
+                        }
+                    },
+                    {
+                        "$addFields": {
+                            "affiliation": {
+                                "$arrayElemAt": ["$affiliation_details.name", 0]
+                            }
+                        }
+                    },
+                    {
+                        "$project": {
+                            "affiliation_details": 0
+                        }
+                    }
+                ]
+        else:
+            pipeline = []
+            query = {}
     
-    cursor = collection.find(query)
+        if selected_collection == 'People':
+            cursor = db[selected_collection].aggregate(pipeline)
+        else:
+            cursor = collection.find(query)
+            if sort_by is not None:
+                cursor = cursor.sort(sort_by, sort_order)
 
-    if sort_by is not None:
-        cursor = cursor.sort(sort_by, sort_order)
-
-    return list(cursor)
-
+        return list(cursor)
 
 # Function to filter JSON data
 def filter_json(json_data, keys_to_remove):
@@ -123,18 +179,28 @@ if st.session_state.username != '':
     all_collections = {}
     for db_name in all_databases:
         all_collections[db_name] = client[db_name].list_collection_names()
+
     selected_database = st.selectbox("Select a database", 
                                  all_databases,
                                  key='selected_db',
                                  index=None)      
     if st.session_state.selected_db:
         st.session_state.collections = all_collections[st.session_state.selected_db]
+
     selected_collection = st.selectbox('Select a data collection', 
                                            st.session_state.collections,
                                            index=None)
-
-    selected_region = st.selectbox('Select a region', ['All', 'Kenya', 'Wonderland'], index=0)
-
+    if selected_collection:
+        if selected_collection == 'Project':
+            selected_region = st.selectbox('Select a region', ['All', 'Kenya', 'Wonderland'], index=None)
+            selected_organization = None
+            st.warning("Please select a region.")
+        elif selected_collection == 'People':
+            selected_organization = st.selectbox('Select an organization', ['All', 'Asulma Center', 'Test Center'], index=None)
+            selected_region = None
+        else:
+            selected_region = None
+            selected_organization = None
     try:
         # Retrieve data in a list of json
         results = get_documents_from_collection(
@@ -142,6 +208,7 @@ if st.session_state.username != '':
                     selected_database, 
                     selected_collection,
                     selected_region,
+                    selected_organization,
                     sort_by="_id",
                     sort_order=-1
                 )
@@ -154,12 +221,12 @@ if st.session_state.username != '':
         # Convert JSON data to HTML
         for document in results:
             better_output = process_json_to_html(document, keys_to_remove)
-            #st.html(better_output)
             styled_output = add_styling(better_output)
             st.html(styled_output)
-            st.write(document)
-    except:
-        st.write("Please select a database and a collection.")
+            # Check the original data in json
+            #st.write(document)
+    except Exception as e:
+        st.warning("Please select your appropriate search options.")
 
 else:
     st.sidebar.warning("Please log in to search data.")
